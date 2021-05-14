@@ -18,15 +18,15 @@ import pydicom
 class TransformMR2CT(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
-        parent.title = "Batch Structure Set Conversion"
-        parent.categories = ["Testing.SlicerRT Tests"]
-        parent.dependencies = ["DicomRtImportExport", "Segmentations"]
-        parent.contributors = ["Csaba Pinter (Queen's)"]
+        parent.title = "Transform MR to CT Space"
+        parent.categories = ["Transform MR to CT"]
+        parent.dependencies = []
+        parent.contributors = ["Geoff Klein (None)"]
         parent.helpText = """
-    This is a module for converting DICOM structure set to labelmaps and saving them to disk.
+    This module is for converting MR scans to CT space with CT reg files.
     """
         parent.acknowledgementText = """This file was originally developed by Csaba Pinter, PerkLab, Queen's University and was supported through the Applied Cancer Research Unit program of Cancer Care Ontario with funds provided by the Ontario Ministry of Health and Long-Term Care"""  # replace with organization, grant and thanks.
-        self.parent = parent
+        self.parent.helpText += self.getDefaultModuleDocumentationLink()
 
         # Add this test to the SelfTest module's list for discovery when the module
         # is created.  Since this module may be discovered before SelfTests itself,
@@ -44,10 +44,26 @@ class TransformMR2CT(ScriptedLoadableModule):
 #
 class TransformMR2CTWidget(ScriptedLoadableModuleWidget):
     def setup(self):
-        self.developerMode = True
+        # self.developerMode = True
         ScriptedLoadableModuleWidget.setup(self)
 
+        font = qt.QFont()
+        font.setBold(True)
 
+        self.applyTransformButton = qt.QPushButton('Apply Transform')
+        self.applyTransformButton.setFont(font)
+        self.applyTransformButton.toolTip = 'ApplyTransform'
+        self.applyTransformButton.enabled = True
+
+        # Segmentation button connections
+        self.applyTransformButton.connect('clicked(bool)', self.onTransformButton)
+
+        self.layout.addWidget(self.applyTransformButton)
+
+
+
+    def onTransformButton(self):
+      main('1')
 # ------------------------------------------------------------------------------
 # BatchStructureSetConversionLogic
 #
@@ -131,6 +147,7 @@ class TransformMR2CTLogic(ScriptedLoadableModuleLogic):
 
 
 def main(argv):
+  slicer.mrmlScene.Clear(0)
   try:
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Batch Structure Set Conversion")
@@ -157,10 +174,14 @@ def main(argv):
 
     # args.input_folder = 'W:/OdetteDICOMS/Misaligned/SHSC-2d7f594065d24c8634e94bb2e5fb74d5578112323880c25505/20150323/input_folder'
     # args.input_folder = 'W:/OdetteDICOMS/Misaligned/SHSC-2d7f594065d24c8634e94bb2e5fb74d5578112323880c25505/20150323/hold'
-    args.input_folder = 'W:/incomingOdette'
+    # args.input_folder = 'W:/incomingOdette'
+
     # args.exist_db = 'D:/SlicerModules/20200825_025958_TempDICOMDatabase'
-    args.exist_db = 'D:/SlicerModules/OdetteDicom'
-    args.output_folder = 'W:/Odette_output_folder_hold'
+
+    # args.exist_db = 'D:/SlicerModules/OdetteDicom'
+    args.exist_db = '/home/klein/Documents/SlicerDICOMDatabase'
+
+    args.output_folder = '/home/klein/OdetteDicomProcessed'
 
     # # Check required arguments
     # if args.input_folder == "-":
@@ -178,7 +199,7 @@ def main(argv):
     export_images = args.export_images
 
     # Perform batch conversion
-    logic = BatchStructureSetConversionLogic()
+    logic = TransformMR2CTLogic()
     def save_rtslices(output_dir, use_ref_image, ref_image_node_id=None):
       # package the saving code into a subfunction
 
@@ -264,9 +285,7 @@ def main(argv):
 
       reg_sop_list = []
 
-
       for seriesInstanceUID in patientID_dict_all_series[patientID]:
-
         series_modality = db_main.fieldForSeries('Modality', seriesInstanceUID).lower()
 
         if series_modality == 'REG'.lower():
@@ -278,16 +297,20 @@ def main(argv):
 
           for reg_file in reg_file_list:
 
-            reg_sopInstanceUID_0 = pydicom.read_file(reg_file)[0x0008, 0x1115][0][0x0020, 0x000e].value
-            reg_sopInstanceUID_1 = pydicom.read_file(reg_file)[0x0008, 0x1115][1][0x0020, 0x000e].value
+            reg = pydicom.read_file(reg_file)
 
+            reg_sopInstanceUID_0 = reg[0x0008, 0x1115][0][0x0020, 0x000e].value
+            reg_sopInstanceUID_1 = reg[0x0008, 0x1115][1][0x0020, 0x000e].value
 
-            reg_study_ID = pydicom.read_file(reg_file)[0x0020, 0x0010].value
+            reg_instanceUID = reg[0x0008, 0x0018].value
+
+            reg_study_ID = reg[0x0020, 0x0010].value
 
             reg_dict_hold = {'reg_sop': reg_sopInstanceUID_0,
                              'transform_number': 0,
                              'seriesInstanceUID': seriesInstanceUID,
-                             'studyID': reg_study_ID}
+                             'studyID': reg_study_ID,
+                             'reg_instance_uid': reg_instanceUID}
 
             reg_sop_list.append(reg_dict_hold)
 
@@ -295,7 +318,8 @@ def main(argv):
             reg_dict_hold = {'reg_sop': reg_sopInstanceUID_1,
                              'transform_number': 1,
                              'seriesInstanceUID': seriesInstanceUID,
-                             'studyID': reg_study_ID}
+                             'studyID': reg_study_ID,
+                             'reg_instance_uid': reg_instanceUID}
 
             reg_sop_list.append(reg_dict_hold)
 
@@ -303,9 +327,9 @@ def main(argv):
         elif (series_modality == 'MR'.lower()) or (series_modality == 'MRI'.lower()):
           MR_list.append(seriesInstanceUID)
 
-
         elif series_modality == 'CT'.lower():
           CT_list.append(seriesInstanceUID)
+
 
 
 
@@ -320,6 +344,8 @@ def main(argv):
           reg_transform_number = reg_dict['transform_number']
           reg_uid = reg_dict['seriesInstanceUID']
           reg_study_ID = reg_dict['studyID']
+
+          reg_instanceUID = reg_dict['reg_instance_uid']
 
           last_values_reg = reg_sop.split('.')[-1]
 
@@ -339,7 +365,7 @@ def main(argv):
 
 
             matching_dict = {'mr_series': MR, 'transform_series': reg_uid, 'transform_number': reg_transform_number,
-                             'studyID': reg_study_ID, 'ct_series': ct_pair_series}
+                             'studyID': reg_study_ID, 'ct_series': ct_pair_series, 'reg_instanceUID': reg_instanceUID}
 
             patientID_dict_matching_trans_mr[patientID].append(matching_dict)
 
@@ -362,7 +388,7 @@ def main(argv):
 
         a = 1
 
-
+    # print(patientID_dict_matching_trans_mr.keys())
     for patientID in patientID_dict_matching_trans_mr.keys():
       for matching_dict in patientID_dict_matching_trans_mr[patientID]:
 
@@ -375,18 +401,79 @@ def main(argv):
         reg_transform_number = matching_dict['transform_number']
         reg_study_id = matching_dict['studyID']
 
+        ct_series = matching_dict['ct_series']
+
+
+
+        reg_instanceUID = matching_dict['reg_instanceUID']
+
         output_dir = os.path.join(output_folder, patientID, reg_study_id)
         if not os.access(output_dir, os.F_OK):
           os.makedirs(output_dir)
 
 
-        DICOMLib.loadSeriesByUID([mr_series, reg_uid])
+        # print(patientID, reg_study_id)
+
+
+
+
+
+        # print(mr_series) # 1.2.840.11361.2.244.6945.225830.22769.1439451820.920
+        # print()
+        # print(reg_uid) # 2.16.840.1.11366.2.931128.540785.20200310093951.839844
+        # print()
+        # print(reg_sop) # 1.2.840.113619.2.244.6945.139856.29785.1381909676.230
+        # # 2.16.840.1.11366.2.931128.540785.20200310093952.903012
+
+        DICOMLib.loadByInstanceUID(reg_instanceUID)
+
+        # DICOMLib.loadSeriesByUID([reg_uid])
+
+        # raise OSError
+
+        # slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetNodeByID('vtkMRMLScalarVolumeNode*'))
+
+
+        DICOMLib.loadSeriesByUID([mr_series])
+
+        # DICOMLib.loadSeriesByUID(['1.2.840.11361.2.244.6945.225830.22769.1439451820.920'])
+
+        seq_collect_node = slicer.mrmlScene.GetNodesByName('Sequence')
+
+        for num_seq in range(seq_collect_node.GetNumberOfItems()):
+          slicer.mrmlScene.RemoveNode(seq_collect_node.GetItemAsObject(num_seq))
+
+
+        # raise OSError
+
+
+
+        # slicer.mrmlScene.RemoveNode(slicer.mrmlScene.GetNodesByName('Sequence'))
+
+
 
         mr = slicer.util.getNode('vtkMRMLScalarVolumeNode*')
-        transform = slicer.util.getNode('transform')
-        mr_image = mr.SetAndObserveTransformNodeID(transform.GetID())
 
-        mr_image.HardenTransform()
+
+
+        # print(reg_transform_number, type(reg_transform_number))
+
+        transform = slicer.mrmlScene.GetNodesByName('1: SpatialReg [1]_SpatialRegistration').GetItemAsObject(0)
+
+        # if reg_transform_number == 0:
+        #   transform = slicer.mrmlScene.GetNodesByName('1: SpatialReg [1]_SpatialRegistration').GetItemAsObject(0)
+        #
+        # else:
+        #   transform = slicer.mrmlScene.GetNodesByName('1: SpatialReg [1]_SpatialRegistration_1').GetItemAsObject(0)
+
+
+
+
+        mr.SetAndObserveTransformNodeID(transform.GetID())
+
+        # raise OSError('here')
+
+        mr.HardenTransform()
 
         sv_nodes = slicer.util.getNodes('vtkMRMLScalarVolumeNode*')
 
@@ -400,14 +487,17 @@ def main(argv):
           success = slicer.util.saveNode(imageNode, filePath)
 
         # Save CT after MR so there is only one vtkMRMLScalarVolumeNode at a time
+
         slicer.mrmlScene.Clear(0)  # clear the scene
+
         ct_series = matching_dict['ct_series']
 
         if ct_series is not None:
           DICOMLib.loadSeriesByUID([ct_series])
+
           ct_nodes = slicer.util.getNodes('vtkMRMLScalarVolumeNode*')
 
-          for imageNode in sv_nodes.values():
+          for imageNode in ct_nodes.values():
             # Clean up file name and set path
             fileName = imageNode.GetName() + '.nii.gz'
             table = str.maketrans(dict.fromkeys('!?:;'))
@@ -416,6 +506,9 @@ def main(argv):
 
             success = slicer.util.saveNode(imageNode, filePath)
 
+
+
+          # raise OSError('here')
 
         # get mr node : mr = slicer.util.getNode('mr node name')
         # get transform : transform = slicer.util.getNode('transform')
@@ -440,27 +533,27 @@ def main(argv):
 
 
     # ['1.2.840.11370.1.111.6560.1441379353.10', '2.16.840.1.11366.2.931128.540785.20200413192314.196191', '2.16.840.1.11366.2.931128.540785.20200413192505.474718', '2.16.840.1.11366.2.931128.540785.20200413192526.611071', '1.2.840.11361.2.244.6945.139856.6464.1441354531.396', '1.2.840.11361.2.244.6945.139856.6464.1441354531.397']
-    for patientID in patientID_dict_all_series.keys():
-
-        seriesInstanceUID_list = patientID_dict_all_series[patientID]
-
-        for series_id in seriesInstanceUID_list:
-          series_modality = db_main.fieldForSeries('Modality', series_id)
-          print(series_modality)
-
-        print(seriesInstanceUID_list)
-        slicer.mrmlScene.Clear(0)  # clear the scene
-        # DICOMUtils.loadPatientByUID(patient)
-        DICOMLib.loadSeriesByUID(seriesInstanceUID_list)
-
-
-
-        # get mr node : mr = slicer.util.getNode('mr node name')
-        # get transform : transform = slicer.util.getNode('transform')
-        # apply transform to mr image = mr.SetAndObserveTransformNodeID(transform.GetID())
-        # harden transform : mr.HardenTransform()
-
-        a = 1
+    # for patientID in patientID_dict_all_series.keys():
+    #
+    #     seriesInstanceUID_list = patientID_dict_all_series[patientID]
+    #
+    #     for series_id in seriesInstanceUID_list:
+    #       series_modality = db_main.fieldForSeries('Modality', series_id)
+    #       print(series_modality)
+    #
+    #     print(seriesInstanceUID_list)
+    #     slicer.mrmlScene.Clear(0)  # clear the scene
+    #     # DICOMUtils.loadPatientByUID(patient)
+    #     DICOMLib.loadSeriesByUID(seriesInstanceUID_list)
+    #
+    #
+    #
+    #     # get mr node : mr = slicer.util.getNode('mr node name')
+    #     # get transform : transform = slicer.util.getNode('transform')
+    #     # apply transform to mr image = mr.SetAndObserveTransformNodeID(transform.GetID())
+    #     # harden transform : mr.HardenTransform()
+    #
+    #     a = 1
 
         # DICOMUtils.loadPatientByPatientID(patientID)
         # output_dir = os.path.join(output_folder, patientID)
