@@ -14,7 +14,7 @@ import copy
 # BatchStructureSetConversion
 #   Convert structures in structure set to labelmaps and save them to disk
 #
-class BatchStructureSetConversion(ScriptedLoadableModule):
+class BatchStructureSetConversionSeg(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         parent.title = "Batch Structure Set Conversion"
@@ -34,17 +34,17 @@ class BatchStructureSetConversion(ScriptedLoadableModule):
             slicer.selfTests
         except AttributeError:
             slicer.selfTests = {}
-        slicer.selfTests['BatchStructureSetConversion'] = self.runTest
+        slicer.selfTests['BatchStructureSetConversionSeg'] = self.runTest
 
     def runTest(self, msec=100, **kwargs):
-        tester = BatchStructureSetConversionTest()
+        tester = BatchStructureSetConversionSegTest()
         tester.runTest()
 
 
 # ------------------------------------------------------------------------------
 # BatchStructureSetConversionWidget
 #
-class BatchStructureSetConversionWidget(ScriptedLoadableModuleWidget):
+class BatchStructureSetConversionSegWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         self.developerMode = True
         ScriptedLoadableModuleWidget.setup(self)
@@ -53,7 +53,7 @@ class BatchStructureSetConversionWidget(ScriptedLoadableModuleWidget):
 # ------------------------------------------------------------------------------
 # BatchStructureSetConversionLogic
 #
-class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
+class BatchStructureSetConversionSegLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
     computation done by your module.  The interface
     should be such that other python code can import
@@ -64,7 +64,7 @@ class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
     def __init__(self):
       ScriptedLoadableModuleLogic.__init__(self)
 
-      self.dataDir = slicer.app.temporaryPath + '/BatchStructureSetConversion'
+      self.dataDir = slicer.app.temporaryPath + '/BatchStructureSetConversionSeg'
       if not os.access(self.dataDir, os.F_OK):
         os.mkdir(self.dataDir)
 
@@ -198,7 +198,7 @@ class BatchStructureSetConversionLogic(ScriptedLoadableModuleLogic):
 # ------------------------------------------------------------------------------
 # BatchStructureSetConversionTest
 #
-class BatchStructureSetConversionTest(ScriptedLoadableModuleTest):
+class BatchStructureSetConversionSegTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
   """
@@ -212,7 +212,7 @@ class BatchStructureSetConversionTest(ScriptedLoadableModuleTest):
 
     # TODO: Comment out - sample code for debugging by writing to file
     # logFile = open('d:/pyTestLog.txt', 'a')
-    # logFile.write(repr(slicer.modules.BatchStructureSetConversion) + '\n')
+    # logFile.write(repr(slicer.modules.BatchStructureSetConversionSeg) + '\n')
     # logFile.close()
 
   def runTest(self):
@@ -220,11 +220,11 @@ class BatchStructureSetConversionTest(ScriptedLoadableModuleTest):
     """
     self.setUp()
 
-    self.test_BatchStructureSetConversion_FullTest1()
+    self.test_BatchStructureSetConversionSeg_FullTest1()
 
-  def test_BatchStructureSetConversion_FullTest1(self):
+  def test_BatchStructureSetConversionSeg_FullTest1(self):
     # Create logic
-    self.logic = BatchStructureSetConversionLogic()
+    self.logic = BatchStructureSetConversionSegLogic()
 
     # Check for modules
     self.assertTrue(slicer.modules.dicomrtimportexport)
@@ -246,7 +246,7 @@ class BatchStructureSetConversionTest(ScriptedLoadableModuleTest):
       os.mkdir(self.dicomDataDir)
 
     # Define variables
-    self.dataDir = slicer.app.temporaryPath + '/BatchStructureSetConversion'
+    self.dataDir = slicer.app.temporaryPath + '/BatchStructureSetConversionSeg'
     if not os.access(self.dataDir, os.F_OK):
         os.mkdir(self.dataDir)
     self.dicomDatabaseDir = self.dataDir + '/CtkDicomDatabase'
@@ -327,10 +327,18 @@ def main(argv):
 
     # args.input_folder = 'W:/OdetteDICOMS/Misaligned/SHSC-2d7f594065d24c8634e94bb2e5fb74d5578112323880c25505/20150323/input_folder'
     # args.input_folder = 'W:/OdetteDICOMS/Misaligned/SHSC-2d7f594065d24c8634e94bb2e5fb74d5578112323880c25505/20150323/hold'
-    args.input_folder = 'W:/incomingOdette'
+    # args.input_folder = 'W:/incomingOdette'
+    # # args.exist_db = 'D:/SlicerModules/20200825_025958_TempDICOMDatabase'
+    # args.exist_db = 'D:/SlicerModules/OdetteDicom'
+    # args.output_folder = 'W:/Odette_output_folder_hold'
+
+    args.input_folder = 'C:/OdetteDicoms'
     # args.exist_db = 'D:/SlicerModules/20200825_025958_TempDICOMDatabase'
-    args.exist_db = 'D:/SlicerModules/OdetteDicom'
-    args.output_folder = 'W:/Odette_output_folder_hold'
+    args.exist_db = 'C:/Users/gakle/Documents/SlicerDICOMDatabase'
+    args.output_folder = 'C:/OdetteDicomProcessed_Seg'
+
+
+
 
     # Check required arguments
     if args.input_folder == "-":
@@ -345,10 +353,11 @@ def main(argv):
 
     use_ref_image = args.use_ref_image
     exist_db = args.exist_db
-    export_images = args.export_images
+    # export_images = args.export_images
+    export_images = False
 
     # Perform batch conversion
-    logic = BatchStructureSetConversionLogic()
+    logic = BatchStructureSetConversionSegLogic()
     def save_rtslices(output_dir, use_ref_image, ref_image_node_id=None):
       # package the saving code into a subfunction
       logging.info("Convert loaded structure set to labelmap volumes")
