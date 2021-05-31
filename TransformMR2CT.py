@@ -13,6 +13,39 @@ import pydicom
 import numpy as np
 
 
+class TransformMR2CT(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        parent.title = "Transform MR to CT Space"
+        parent.categories = ["Transform MR to CT"]
+        parent.dependencies = []
+        parent.contributors = ["Geoff Klein (None)"]
+        parent.helpText = """
+    This module is for converting MR scans to CT space with CT reg files.
+    """
+        self.parent.helpText += self.getDefaultModuleDocumentationLink()
+
+
+class TransformMR2CTWidget(ScriptedLoadableModuleWidget):
+    def setup(self):
+        # self.developerMode = True
+        ScriptedLoadableModuleWidget.setup(self)
+
+        font = qt.QFont()
+        font.setBold(True)
+
+        self.applyTransformButton = qt.QPushButton('Apply Transform')
+        self.applyTransformButton.setFont(font)
+        self.applyTransformButton.toolTip = 'ApplyTransform'
+        self.applyTransformButton.enabled = True
+
+        # Segmentation button connections
+        self.applyTransformButton.connect('clicked(bool)', self.onTransformButton)
+
+        self.layout.addWidget(self.applyTransformButton)
+
+    def onTransformButton(self):
+      main()
 
 def main():
   slicer.mrmlScene.Clear(0)
@@ -52,26 +85,26 @@ def main():
 
 
   # Convert to python path style
-  input_folder = args.input_folder.replace('\\', '/')
-  ref_dicom_folder = args.ref_dicom_folder.replace('\\', '/')
+  # input_folder = args.input_folder.replace('\\', '/')
+  # ref_dicom_folder = args.ref_dicom_folder.replace('\\', '/')
   output_folder = args.output_folder.replace('\\', '/')
 
-  use_ref_image = args.use_ref_image
+  # use_ref_image = args.use_ref_image
   exist_db = args.exist_db
-  export_images = args.export_images
+  # export_images = args.export_images
 
+  DICOMUtils.openDatabase(exist_db)
 
-
-  if exist_db:
-    DICOMUtils.openDatabase(exist_db)
-  else:
-    if os.path.isdir(ref_dicom_folder):
-      DICOMUtils.openTemporaryDatabase()
-      DICOMUtils.importDicom(ref_dicom_folder)
-
-    # logging.info("Import DICOM data from " + input_folder)
-    DICOMUtils.openTemporaryDatabase()
-    DICOMUtils.importDicom(input_folder)
+  # if exist_db:
+  #   DICOMUtils.openDatabase(exist_db)
+  # else:
+  #   if os.path.isdir(ref_dicom_folder):
+  #     DICOMUtils.openTemporaryDatabase()
+  #     DICOMUtils.importDicom(ref_dicom_folder)
+  #
+  #   # logging.info("Import DICOM data from " + input_folder)
+  #   DICOMUtils.openTemporaryDatabase()
+  #   DICOMUtils.importDicom(input_folder)
 
 
   db_main = slicer.dicomDatabase

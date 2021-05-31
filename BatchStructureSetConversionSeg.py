@@ -18,13 +18,12 @@ class BatchStructureSetConversionSeg(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         parent.title = "Batch Structure Set Conversion"
-        parent.categories = ["Testing.SlicerRT Tests"]
+        parent.categories = ["Converting structure sets and extracting segmentations."]
         parent.dependencies = ["DicomRtImportExport", "Segmentations"]
         parent.contributors = ["Csaba Pinter (Queen's)"]
         parent.helpText = """
     This is a module for converting DICOM structure set to labelmaps and saving them to disk.
     """
-        parent.acknowledgementText = """This file was originally developed by Csaba Pinter, PerkLab, Queen's University and was supported through the Applied Cancer Research Unit program of Cancer Care Ontario with funds provided by the Ontario Ministry of Health and Long-Term Care"""  # replace with organization, grant and thanks.
         self.parent = parent
 
         # Add this test to the SelfTest module's list for discovery when the module
@@ -41,13 +40,27 @@ class BatchStructureSetConversionSeg(ScriptedLoadableModule):
         tester.runTest()
 
 
-# ------------------------------------------------------------------------------
-# BatchStructureSetConversionWidget
-#
-class BatchStructureSetConversionSegWidget(ScriptedLoadableModuleWidget):
-    def setup(self):
-        self.developerMode = True
-        ScriptedLoadableModuleWidget.setup(self)
+class BatchStructureSetConversionSegidget(ScriptedLoadableModuleWidget):
+  def setup(self):
+    # self.developerMode = True
+    ScriptedLoadableModuleWidget.setup(self)
+
+    font = qt.QFont()
+    font.setBold(True)
+
+    self.extractSegButton = qt.QPushButton('Extract Segmentations')
+    self.extractSegButton.setFont(font)
+    self.extractSegButton.toolTip = 'ExtractSegmentations'
+    self.extractSegButton.enabled = True
+
+    # Segmentation button connections
+    self.extractSegButton.connect('clicked(bool)', self.onExtractButton)
+
+    self.layout.addWidget(self.extractSegButton)
+
+  def onExtractButton(self):
+    main()
+
 
 
 # ------------------------------------------------------------------------------
