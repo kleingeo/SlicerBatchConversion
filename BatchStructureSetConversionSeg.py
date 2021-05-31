@@ -300,7 +300,7 @@ class BatchStructureSetConversionSegTest(ScriptedLoadableModuleTest):
     qt.QApplication.restoreOverrideCursor()
 
 
-def main(argv):
+def main():
   try:
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Batch Structure Set Conversion")
@@ -392,16 +392,9 @@ def main(argv):
 
     # Remove all scans that are not CT or RTSTRUCT to reduce unnecessary info
 
-    for patient in db_main.patients():
-      for study in db_main.studiesForPatient(patient):
-        for series in db_main.seriesForStudy(study):
-          series_Modality = db_main.fieldForSeries('Modality', series)
-          if ((series_Modality.lower() == 'CT'.lower()) or (series_Modality.lower() == 'RTSTRUCT'.lower())) is False:
-            # db_main.removeSeries(series)
-            a = 1
 
 
-    # dict_hold = {'patientID': {'studyID': []}}
+
 
     patientID_dict = {}
     studyID_dict = {}
@@ -423,9 +416,7 @@ def main(argv):
       patientID_dict[patientID] = studyID_dict
 
 
-    # logging.info("Load first patient into Slicer")
-    # logic.LoadFirstPatientIntoSlicer(patientID_list)
-    # save_rtslices(output_folder, use_ref_image, ref_image_node_id)
+
 
     for patientID in patientID_dict.keys():
       for studyID in patientID_dict[patientID].keys():
@@ -433,66 +424,21 @@ def main(argv):
         seriesInstanceUID_list = patientID_dict[patientID][studyID]
 
         slicer.mrmlScene.Clear(0)  # clear the scene
-        # DICOMUtils.loadPatientByUID(patient)
+
         DICOMLib.loadSeriesByUID(seriesInstanceUID_list)
-        # DICOMUtils.loadPatientByPatientID(patientID)
+
         output_dir = os.path.join(output_folder, patientID, studyID)
         if not os.access(output_dir, os.F_OK):
           os.makedirs(output_dir)
         save_rtslices(output_dir, use_ref_image)
 
-        # seriesInstanceUID_list
-        # ['1.2.840.11370.1.111.5228.1426171857.8', '2.16.840.1.11366.2.931128.540785.20200403094848.475231']
-
-      # if os.path.isdir(ref_dicom_folder):
-      #   # If reference DICOM folder is given and valid, then load that volume
-      #   logging.info("Import reference anatomy DICOM data from " + ref_dicom_folder)
-      #   DICOMUtils.openTemporaryDatabase()
-      #   DICOMUtils.importDicom(ref_dicom_folder)
-      #
-      #   db = slicer.dicomDatabase
-      #   num_patients = db.patientsCount()
-      #   patientID_list = []
-      #
-      #   for patient_idx, patient in enumerate(db.patients()):
-      #     patientID = db.fieldForPatient('PatientID', patient)
-      #     if patientID not in patientID_list:
-      #       patientID_list.append(patientID)
-      #
-      #
-      #   logic.LoadFirstPatientIntoSlicer(patientID_list)
-      #   # Remember first volume
-      #   scalarVolumeNodes = list(slicer.util.getNodes('vtkMRMLScalarVolume*').values())
-      #   if len(scalarVolumeNodes) > 0:
-      #     ref_image_node_id = scalarVolumeNodes[0].GetID()
 
 
   except Exception as e:
       print(e)
-  # sys.exit(0)
+
 
 
 if __name__ == "__main__":
-  main(sys.argv[1:])
+  main()
 
-
-# patientID_dict = {}
-# studyID_dict = {}
-#
-# for patient_idx, patient in enumerate(db_main.patients()):
-#   patientID = db_main.fieldForPatient('PatientID', patient)
-#   if patientID not in patientID_dict.keys():
-#     patientID_dict[patientID] = None
-#     studyID_dict = {}
-#   for studyInstanceUID in db_main.studiesForPatient(patient):
-#     studyID = db_main.fieldForStudy('StudyID', studyInstanceUID)
-#     if studyID not in studyID_dict.keys():
-#       studyID_dict[studyID] = []
-#     for seriesInstanceUID in db_main.seriesForStudy(studyInstanceUID):
-#       studyID_dict[studyID].append(seriesInstanceUID)
-#   patientID_dict[patientID] = studyID_dict
-#
-#
-# 'SHSC-dd79bb44de20ac0725280cf718a8dc14327ea8c0490c45a89c'
-#
-# '30528'
