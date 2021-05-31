@@ -10,6 +10,7 @@ from DICOMLib import DICOMUtils
 import DICOMLib
 import copy
 import pydicom
+import numpy as np
 
 # ------------------------------------------------------------------------------
 # BatchStructureSetConversion
@@ -179,9 +180,15 @@ def main(argv):
     # args.exist_db = 'D:/SlicerModules/20200825_025958_TempDICOMDatabase'
 
     # args.exist_db = 'D:/SlicerModules/OdetteDicom'
-    args.exist_db = '/home/klein/Documents/SlicerDICOMDatabase'
 
-    args.output_folder = '/home/klein/OdetteDicomProcessed'
+    # args.exist_db = '/home/klein/Documents/SlicerDICOMDatabase'
+    #
+    # args.output_folder = '/home/klein/OdetteDicomProcessed'
+
+    args.exist_db = 'C:/Users/gakle/Documents/SlicerDICOMDatabase'
+
+    args.output_folder = 'C:/OdetteDicomProcessed'
+
 
     # # Check required arguments
     # if args.input_folder == "-":
@@ -455,6 +462,40 @@ def main(argv):
         mr = slicer.util.getNode('vtkMRMLScalarVolumeNode*')
 
 
+        direction_matrix_vtk = vtk.vtkMatrix4x4()
+
+        mr.GetIJKToRASDirectionMatrix(direction_matrix_vtk)
+
+        direction_matrix = slicer.util.arrayFromVTKMatrix(direction_matrix_vtk)
+
+        mr_origin = mr.GetOrigin()
+
+        mr_spacing = mr.GetSpacing()
+        mr_spacing_direction = mr.GetSpacing() * np.sign(direction_matrix[(0, 1, 2), (0, 1, 2)])
+
+
+
+        mr_dimensions = mr.GetImageData().GetDimensions()
+
+        bbox_extent = np.array(mr_origin) + np.array(mr_spacing_direction) * (np.array(mr_dimensions) - 1)
+
+        image_extent = np.matmul(direction_matrix[:3, :3], np.array(mr_spacing) * [511, 511, 64]) + mr_origin
+
+        mr_translation = (bbox_extent - image_extent) / 2
+
+        mr_lin_transform = np.eye(4)
+
+        mr_lin_transform[:3, -1] = mr_translation
+
+        mr_lin_transform_vtk = slicer.util.vtkMatrixFromArray(mr_lin_transform)
+
+        translation_transform = slicer.vtkMRMLLinearTransformNode()
+        translation_transform.SetMatrixTransformToParent(mr_lin_transform_vtk)
+
+        slicer.mrmlScene.AddNode(translation_transform)
+
+        mr.SetAndObserveTransformNodeID(translation_transform.GetID())
+        mr.HardenTransform()
 
         # print(reg_transform_number, type(reg_transform_number))
 
