@@ -2,6 +2,8 @@
 
 To run either script, the folder containing the files must be added to the modules path in Slicer. 
 
+Both modules require SliceRT to run properly. 
+
 ---
 ---
 
@@ -22,7 +24,7 @@ To run script, in Slicer, after putting in the correct paths, the module can be 
 [`BatchStructureSetConversionSeg.py`](BatchStructureSetConversionSeg.py)
 
 BatchStructureSetConversion extracts the GTV, CTV and PTV for RTSTRUCT
-dicom files. This script requires SlicerRT module. Similar to the other, it is best to hard-code the paths for an 
+dicom files. Similar to the other, it is best to hard-code the paths for an 
 existing Slicer 3D DICOM database (same as above). 
 
 This script is much slower than the transform one above. To ensure proper functionality it may be best to run this with
