@@ -4,6 +4,8 @@ To run either script, the folder containing the files must be added to the modul
 
 Both modules require SliceRT to run properly. 
 
+Developed in Slicer 4.11.0-2020-09-22
+
 ---
 ---
 
