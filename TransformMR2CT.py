@@ -326,7 +326,7 @@ def main():
 
       bbox_extent = np.array(mr_origin) + np.array(mr_spacing_direction) * (np.array(mr_dimensions) - 1)
 
-      image_extent = np.matmul(direction_matrix[:3, :3], np.array(mr_spacing) * [511, 511, 64]) + mr_origin
+      image_extent = np.matmul(direction_matrix[:3, :3], np.array(mr_spacing) * np.array(mr.GetImageData().GetBounds())[[1, 3, 5]]) + mr_origin
 
       mr_translation = (bbox_extent - image_extent) / 2
 
