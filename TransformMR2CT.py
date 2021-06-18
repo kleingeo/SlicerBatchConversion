@@ -1,4 +1,5 @@
-from __future__ import absolute_import, division, print_function # Makes moving python2 to python3 much easier and ensures that nasty bugs involving integer division don't creep in
+from __future__ import absolute_import, division, \
+    print_function  # Makes moving python2 to python3 much easier and ensures that nasty bugs involving integer division don't creep in
 import os
 import unittest
 import vtk, qt, ctk, slicer
@@ -45,348 +46,318 @@ class TransformMR2CTWidget(ScriptedLoadableModuleWidget):
         self.layout.addWidget(self.applyTransformButton)
 
     def onTransformButton(self):
-      main()
+        main()
+
 
 def main():
-  slicer.mrmlScene.Clear(0)
+    slicer.mrmlScene.Clear(0)
 
-  # Parse command-line arguments
-  parser = argparse.ArgumentParser(description="Batch Structure Set Conversion")
-  parser.add_argument("-i", "--input-folder", dest="input_folder", metavar="PATH",
-                      default="-", required=False,
-                      help="Folder of input DICOM study (or database path to use existing)")
-  parser.add_argument("-r", "--ref-dicom-folder", dest="ref_dicom_folder", metavar="PATH",
-                      default="", required=False,
-                      help="Folder containing reference anatomy DICOM image series, if stored outside the input study")
-  parser.add_argument("-u", "--use-ref-image", dest="use_ref_image",
-                      default=False, required=False, action='store_true',
-                      help="Use anatomy image as reference when converting structure set to labelmap")
-  parser.add_argument("-x", "--exist-db", dest="exist_db",
-                      default=False, required=False, action='store_true',
-                      help="Process an existing database")
-  parser.add_argument("-m", "--export-images", dest="export_images",
-                      default=True, required=False, action='store_true',
-                      help="Export image data with labelmaps")
-  parser.add_argument("-o", "--output-folder", dest="output_folder", metavar="PATH",
-                      default=".",
-                      help="Folder for output labelmaps")
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Batch Structure Set Conversion")
+    parser.add_argument("-i", "--input-folder", dest="input_folder", metavar="PATH",
+                        default="-", required=False,
+                        help="Folder of input DICOM study (or database path to use existing)")
+    parser.add_argument("-r", "--ref-dicom-folder", dest="ref_dicom_folder", metavar="PATH",
+                        default="", required=False,
+                        help="Folder containing reference anatomy DICOM image series, if stored outside the input study")
+    parser.add_argument("-u", "--use-ref-image", dest="use_ref_image",
+                        default=False, required=False, action='store_true',
+                        help="Use anatomy image as reference when converting structure set to labelmap")
+    parser.add_argument("-x", "--exist-db", dest="exist_db",
+                        default=False, required=False, action='store_true',
+                        help="Process an existing database")
+    parser.add_argument("-m", "--export-images", dest="export_images",
+                        default=True, required=False, action='store_true',
+                        help="Export image data with labelmaps")
+    parser.add_argument("-o", "--output-folder", dest="output_folder", metavar="PATH",
+                        default=".",
+                        help="Folder for output labelmaps")
 
-  args = parser.parse_args()
+    args = parser.parse_args()
 
+    # args.input_folder = 'W:/incomingOdette'
 
-  # args.input_folder = 'W:/incomingOdette'
+    args.exist_db = 'D:/SlicerModules/OdetteDicom_hold'
+    # args.exist_db = 'C:/Users/gakle/Documents/SlicerDICOMDatabase'
 
-  # args.exist_db = 'D:/SlicerModules/20200825_025958_TempDICOMDatabase'
+    args.output_folder = 'C:/OdetteDicomProcessed'
 
-  args.exist_db = 'C:/Users/gakle/Documents/SlicerDICOMDatabase'
+    # Convert to python path style
+    # input_folder = args.input_folder.replace('\\', '/')
+    # ref_dicom_folder = args.ref_dicom_folder.replace('\\', '/')
+    output_folder = args.output_folder.replace('\\', '/')
 
-  args.output_folder = 'C:/OdetteDicomProcessed'
+    # use_ref_image = args.use_ref_image
+    exist_db = args.exist_db
+    # export_images = args.export_images
 
+    DICOMUtils.openDatabase(exist_db)
 
+    # if exist_db:
+    #   DICOMUtils.openDatabase(exist_db)
+    # else:
+    #   if os.path.isdir(ref_dicom_folder):
+    #     DICOMUtils.openTemporaryDatabase()
+    #     DICOMUtils.importDicom(ref_dicom_folder)
+    #
+    #   # logging.info("Import DICOM data from " + input_folder)
+    #   DICOMUtils.openTemporaryDatabase()
+    #   DICOMUtils.importDicom(input_folder)
 
-  # Convert to python path style
-  # input_folder = args.input_folder.replace('\\', '/')
-  # ref_dicom_folder = args.ref_dicom_folder.replace('\\', '/')
-  output_folder = args.output_folder.replace('\\', '/')
+    db_main = slicer.dicomDatabase
 
-  # use_ref_image = args.use_ref_image
-  exist_db = args.exist_db
-  # export_images = args.export_images
+    patientID_dict = {}
+    studyID_dict = {}
 
-  DICOMUtils.openDatabase(exist_db)
+    patientID_dict_all_series = {}
 
-  # if exist_db:
-  #   DICOMUtils.openDatabase(exist_db)
-  # else:
-  #   if os.path.isdir(ref_dicom_folder):
-  #     DICOMUtils.openTemporaryDatabase()
-  #     DICOMUtils.importDicom(ref_dicom_folder)
-  #
-  #   # logging.info("Import DICOM data from " + input_folder)
-  #   DICOMUtils.openTemporaryDatabase()
-  #   DICOMUtils.importDicom(input_folder)
+    for patient_idx, patient in enumerate(db_main.patients()):
+        patientID = db_main.fieldForPatient('PatientID', patient)
+        if patientID not in patientID_dict.keys():
+            patientID_dict[patientID] = None
+            studyID_dict = {}
 
+        if patientID not in patientID_dict_all_series.keys():
+            patientID_dict_all_series[patientID] = []
 
-  db_main = slicer.dicomDatabase
+        for studyInstanceUID in db_main.studiesForPatient(patient):
+            studyID = db_main.fieldForStudy('StudyID', studyInstanceUID)
 
+            if studyID not in studyID_dict.keys():
+                studyID_dict[studyID] = []
 
-  patientID_dict = {}
-  studyID_dict = {}
+            for seriesInstanceUID in db_main.seriesForStudy(studyInstanceUID):
 
+                series_modality = db_main.fieldForSeries('Modality', seriesInstanceUID).lower()
+                if (series_modality == 'RTPLAN'.lower()) or (series_modality == 'RTDOSE'.lower()):
+                    continue
 
-  patientID_dict_all_series = {}
+                studyID_dict[studyID].append(seriesInstanceUID)
+                patientID_dict_all_series[patientID].append(seriesInstanceUID)
 
-  for patient_idx, patient in enumerate(db_main.patients()):
-    patientID = db_main.fieldForPatient('PatientID', patient)
-    if patientID not in patientID_dict.keys():
-      patientID_dict[patientID] = None
-      studyID_dict = {}
+        patientID_dict[patientID] = studyID_dict
 
-    if patientID not in patientID_dict_all_series.keys():
-      patientID_dict_all_series[patientID] = []
+    # Extract transform IDs
 
+    patientID_dict_matching_trans_mr = {}
 
-    for studyInstanceUID in db_main.studiesForPatient(patient):
-      studyID = db_main.fieldForStudy('StudyID', studyInstanceUID)
+    patient_ID_missing = {}
 
-      if studyID not in studyID_dict.keys():
-        studyID_dict[studyID] = []
+    for patientID in patientID_dict_all_series.keys():
 
-      for seriesInstanceUID in db_main.seriesForStudy(studyInstanceUID):
+        patientID_dict_matching_trans_mr[patientID] = []
+        patient_ID_missing[patientID] = []
 
-        series_modality = db_main.fieldForSeries('Modality', seriesInstanceUID).lower()
-        if (series_modality == 'RTPLAN'.lower()) or (series_modality == 'RTDOSE'.lower()):
-          continue
+        patient_all_mr_matches = True
 
-        studyID_dict[studyID].append(seriesInstanceUID)
-        patientID_dict_all_series[patientID].append(seriesInstanceUID)
+        patient_REG_list = []
 
-    patientID_dict[patientID] = studyID_dict
+        MR_list = []
 
+        CT_list = []
 
-  # Extract transform IDs
+        reg_sop_list = []
 
+        for seriesInstanceUID in patientID_dict_all_series[patientID]:
+            series_modality = db_main.fieldForSeries('Modality', seriesInstanceUID).lower()
 
-  patientID_dict_matching_trans_mr = {}
+            if series_modality == 'REG'.lower():
+                patient_REG_list.append(seriesInstanceUID)
 
-  patient_ID_missing = {}
+                # get sopInstanceUID from transfrom
 
-  for patientID in patientID_dict_all_series.keys():
+                reg_file_list = db_main.filesForSeries(seriesInstanceUID)
 
-    patientID_dict_matching_trans_mr[patientID] = []
-    patient_ID_missing[patientID] = []
+                for reg_file in reg_file_list:
+                    reg = pydicom.read_file(reg_file)
 
-    patient_all_mr_matches = True
+                    reg_sopInstanceUID_0 = reg[0x0008, 0x1115][0][0x0020, 0x000e].value
+                    reg_sopInstanceUID_1 = reg[0x0008, 0x1115][1][0x0020, 0x000e].value
 
-    patient_REG_list = []
+                    reg_instanceUID = reg[0x0008, 0x0018].value
 
-    MR_list = []
+                    reg_study_ID = reg[0x0020, 0x0010].value
 
-    CT_list = []
+                    reg_dict_hold = {'reg_sop': reg_sopInstanceUID_0,
+                                     'transform_number': 0,
+                                     'seriesInstanceUID': seriesInstanceUID,
+                                     'studyID': reg_study_ID,
+                                     'reg_instance_uid': reg_instanceUID}
 
+                    reg_sop_list.append(reg_dict_hold)
 
-    reg_sop_list = []
+                    reg_dict_hold = {'reg_sop': reg_sopInstanceUID_1,
+                                     'transform_number': 1,
+                                     'seriesInstanceUID': seriesInstanceUID,
+                                     'studyID': reg_study_ID,
+                                     'reg_instance_uid': reg_instanceUID}
 
-    for seriesInstanceUID in patientID_dict_all_series[patientID]:
-      series_modality = db_main.fieldForSeries('Modality', seriesInstanceUID).lower()
+                    reg_sop_list.append(reg_dict_hold)
 
-      if series_modality == 'REG'.lower():
-        patient_REG_list.append(seriesInstanceUID)
 
-        # get sopInstanceUID from transfrom
+            elif (series_modality == 'MR'.lower()) or (series_modality == 'MRI'.lower()):
+                MR_list.append(seriesInstanceUID)
 
-        reg_file_list = db_main.filesForSeries(seriesInstanceUID)
+            elif series_modality == 'CT'.lower():
+                CT_list.append(seriesInstanceUID)
 
-        for reg_file in reg_file_list:
+        for MR in MR_list:
 
-          reg = pydicom.read_file(reg_file)
+            last_values_MR = MR.split('.')[-1]
+            found_match = False
 
-          reg_sopInstanceUID_0 = reg[0x0008, 0x1115][0][0x0020, 0x000e].value
-          reg_sopInstanceUID_1 = reg[0x0008, 0x1115][1][0x0020, 0x000e].value
+            for reg_dict in reg_sop_list:
 
-          reg_instanceUID = reg[0x0008, 0x0018].value
+                reg_sop = reg_dict['reg_sop']
+                reg_transform_number = reg_dict['transform_number']
+                reg_uid = reg_dict['seriesInstanceUID']
+                reg_study_ID = reg_dict['studyID']
 
-          reg_study_ID = reg[0x0020, 0x0010].value
+                reg_instanceUID = reg_dict['reg_instance_uid']
 
-          reg_dict_hold = {'reg_sop': reg_sopInstanceUID_0,
-                           'transform_number': 0,
-                           'seriesInstanceUID': seriesInstanceUID,
-                           'studyID': reg_study_ID,
-                           'reg_instance_uid': reg_instanceUID}
+                last_values_reg = reg_sop.split('.')[-1]
 
-          reg_sop_list.append(reg_dict_hold)
+                found_ct_for_pair = False
+                ct_pair_series = None
 
+                if last_values_MR == last_values_reg:
 
-          reg_dict_hold = {'reg_sop': reg_sopInstanceUID_1,
-                           'transform_number': 1,
-                           'seriesInstanceUID': seriesInstanceUID,
-                           'studyID': reg_study_ID,
-                           'reg_instance_uid': reg_instanceUID}
+                    for ct_series in CT_list:
+                        ct_study_id = db_main.fieldForStudy('StudyID', db_main.studyForSeries(ct_series))
 
-          reg_sop_list.append(reg_dict_hold)
+                        if ct_study_id == reg_study_ID:
+                            found_ct_for_pair = True
+                            ct_pair_series = ct_series
 
+                            continue
 
-      elif (series_modality == 'MR'.lower()) or (series_modality == 'MRI'.lower()):
-        MR_list.append(seriesInstanceUID)
+                    matching_dict = {'mr_series': MR, 'transform_series': reg_uid,
+                                     'transform_number': reg_transform_number,
+                                     'studyID': reg_study_ID, 'ct_series': ct_pair_series,
+                                     'reg_instanceUID': reg_instanceUID}
 
-      elif series_modality == 'CT'.lower():
-        CT_list.append(seriesInstanceUID)
+                    patientID_dict_matching_trans_mr[patientID].append(matching_dict)
 
+                    found_match = True
+                    continue
 
+            if found_match == False:
+                mr_series_number = db_main.fieldForSeries('SeriesNumber', MR)
+                mr_study_number = db_main.fieldForStudy('StudyID', db_main.studyForSeries(MR))
 
+                missing_mr_dict = {'SeriesNumber': mr_series_number, 'StudyID': mr_study_number}
 
-    for MR in MR_list:
+                patient_ID_missing[patientID].append(missing_mr_dict)
 
-      last_values_MR = MR.split('.')[-1]
-      found_match = False
+                patient_all_mr_matches = False
 
-      for reg_dict in reg_sop_list:
+        if patient_all_mr_matches == True:
+            patient_ID_missing.pop(patientID)
 
-        reg_sop = reg_dict['reg_sop']
-        reg_transform_number = reg_dict['transform_number']
-        reg_uid = reg_dict['seriesInstanceUID']
-        reg_study_ID = reg_dict['studyID']
+            a = 1
 
-        reg_instanceUID = reg_dict['reg_instance_uid']
+    # print(patientID_dict_matching_trans_mr.keys())
+    for patientID in patientID_dict_matching_trans_mr.keys():
+        for matching_dict in patientID_dict_matching_trans_mr[patientID]:
 
-        last_values_reg = reg_sop.split('.')[-1]
+            slicer.mrmlScene.Clear(0)  # clear the scene
 
-        found_ct_for_pair = False
-        ct_pair_series = None
+            mr_series = matching_dict['mr_series']
+            reg_uid = matching_dict['transform_series']
+            reg_transform_number = matching_dict['transform_number']
+            reg_study_id = matching_dict['studyID']
 
-        if last_values_MR == last_values_reg:
+            ct_series = matching_dict['ct_series']
 
-          for ct_series in CT_list:
-            ct_study_id = db_main.fieldForStudy('StudyID', db_main.studyForSeries(ct_series))
+            reg_instanceUID = matching_dict['reg_instanceUID']
 
-            if ct_study_id == reg_study_ID:
-              found_ct_for_pair = True
-              ct_pair_series = ct_series
+            output_dir = os.path.join(output_folder, patientID, reg_study_id)
+            if not os.access(output_dir, os.F_OK):
+                os.makedirs(output_dir)
 
-              continue
+            DICOMLib.loadByInstanceUID(reg_instanceUID)
 
+            DICOMLib.loadSeriesByUID([mr_series])
 
-          matching_dict = {'mr_series': MR, 'transform_series': reg_uid, 'transform_number': reg_transform_number,
-                           'studyID': reg_study_ID, 'ct_series': ct_pair_series, 'reg_instanceUID': reg_instanceUID}
+            seq_collect_node = slicer.mrmlScene.GetNodesByName('Sequence')
 
-          patientID_dict_matching_trans_mr[patientID].append(matching_dict)
+            for num_seq in range(seq_collect_node.GetNumberOfItems()):
+                slicer.mrmlScene.RemoveNode(seq_collect_node.GetItemAsObject(num_seq))
 
-          found_match = True
-          continue
+            mr = slicer.util.getNode('vtkMRMLScalarVolumeNode*')
 
-      if found_match == False:
-        mr_series_number = db_main.fieldForSeries('SeriesNumber', MR)
-        mr_study_number = db_main.fieldForStudy('StudyID', db_main.studyForSeries(MR))
+            direction_matrix_vtk = vtk.vtkMatrix4x4()
 
-        missing_mr_dict = {'SeriesNumber': mr_series_number, 'StudyID': mr_study_number}
+            mr.GetIJKToRASDirectionMatrix(direction_matrix_vtk)
 
-        patient_ID_missing[patientID].append(missing_mr_dict)
+            direction_matrix = slicer.util.arrayFromVTKMatrix(direction_matrix_vtk)
 
-        patient_all_mr_matches = False
+            mr_origin = mr.GetOrigin()
 
+            mr_spacing = mr.GetSpacing()
+            mr_spacing_direction = mr.GetSpacing() * np.sign(direction_matrix[(0, 1, 2), (0, 1, 2)])
 
-    if patient_all_mr_matches == True:
-      patient_ID_missing.pop(patientID)
+            mr_dimensions = mr.GetImageData().GetDimensions()
 
-      a = 1
+            bbox_extent = np.array(mr_origin) + np.array(mr_spacing_direction) * (np.array(mr_dimensions) - 1)
 
-  # print(patientID_dict_matching_trans_mr.keys())
-  for patientID in patientID_dict_matching_trans_mr.keys():
-    for matching_dict in patientID_dict_matching_trans_mr[patientID]:
+            image_extent = np.matmul(direction_matrix[:3, :3],
+                                     np.array(mr_spacing) * (np.array(mr_dimensions) - 1)) + mr_origin
 
+            mr_translation = (bbox_extent - image_extent) / 2
 
-      slicer.mrmlScene.Clear(0)  # clear the scene
+            mr_lin_transform = np.eye(4)
 
+            mr_lin_transform[:3, -1] = mr_translation
 
-      mr_series = matching_dict['mr_series']
-      reg_uid = matching_dict['transform_series']
-      reg_transform_number = matching_dict['transform_number']
-      reg_study_id = matching_dict['studyID']
+            mr_lin_transform_vtk = slicer.util.vtkMatrixFromArray(mr_lin_transform)
 
-      ct_series = matching_dict['ct_series']
+            translation_transform = slicer.vtkMRMLLinearTransformNode()
+            translation_transform.SetMatrixTransformToParent(mr_lin_transform_vtk)
 
+            slicer.mrmlScene.AddNode(translation_transform)
 
+            mr.SetAndObserveTransformNodeID(translation_transform.GetID())
+            mr.HardenTransform()
 
-      reg_instanceUID = matching_dict['reg_instanceUID']
 
-      output_dir = os.path.join(output_folder, patientID, reg_study_id)
-      if not os.access(output_dir, os.F_OK):
-        os.makedirs(output_dir)
+            # transform = slicer.mrmlScene.GetNodesByName('1: SpatialReg [1]_SpatialRegistration').GetItemAsObject(0)
 
+            transform = slicer.util.getFirstNodeByName('SpatialRegistration')
 
-      DICOMLib.loadByInstanceUID(reg_instanceUID)
+            mr.SetAndObserveTransformNodeID(transform.GetID())
 
+            mr.HardenTransform()
 
-      DICOMLib.loadSeriesByUID([mr_series])
+            sv_nodes = slicer.util.getNodes('vtkMRMLScalarVolumeNode*')
 
+            for imageNode in sv_nodes.values():
+                # Clean up file name and set path
+                fileName = imageNode.GetName() + '.nii.gz'
+                table = str.maketrans(dict.fromkeys('!?:;'))
+                fileName = fileName.translate(table)
+                filePath = output_dir + '/' + fileName
 
-      seq_collect_node = slicer.mrmlScene.GetNodesByName('Sequence')
+                success = slicer.util.saveNode(imageNode, filePath)
 
-      for num_seq in range(seq_collect_node.GetNumberOfItems()):
-        slicer.mrmlScene.RemoveNode(seq_collect_node.GetItemAsObject(num_seq))
+            slicer.mrmlScene.Clear(0)  # clear the scene
 
+            ct_series = matching_dict['ct_series']
 
-      mr = slicer.util.getNode('vtkMRMLScalarVolumeNode*')
+            if ct_series is not None:
+                DICOMLib.loadSeriesByUID([ct_series])
 
+                ct_nodes = slicer.util.getNodes('vtkMRMLScalarVolumeNode*')
 
-      direction_matrix_vtk = vtk.vtkMatrix4x4()
+                for imageNode in ct_nodes.values():
+                    # Clean up file name and set path
+                    fileName = imageNode.GetName() + '.nii.gz'
+                    table = str.maketrans(dict.fromkeys('!?:;'))
+                    fileName = fileName.translate(table)
+                    filePath = output_dir + '/' + fileName
 
-      mr.GetIJKToRASDirectionMatrix(direction_matrix_vtk)
-
-      direction_matrix = slicer.util.arrayFromVTKMatrix(direction_matrix_vtk)
-
-      mr_origin = mr.GetOrigin()
-
-      mr_spacing = mr.GetSpacing()
-      mr_spacing_direction = mr.GetSpacing() * np.sign(direction_matrix[(0, 1, 2), (0, 1, 2)])
-
-
-
-      mr_dimensions = mr.GetImageData().GetDimensions()
-
-      bbox_extent = np.array(mr_origin) + np.array(mr_spacing_direction) * (np.array(mr_dimensions) - 1)
-
-      image_extent = np.matmul(direction_matrix[:3, :3], np.array(mr_spacing) * np.array(mr.GetImageData().GetBounds())[[1, 3, 5]]) + mr_origin
-
-      mr_translation = (bbox_extent - image_extent) / 2
-
-      mr_lin_transform = np.eye(4)
-
-      mr_lin_transform[:3, -1] = mr_translation
-
-      mr_lin_transform_vtk = slicer.util.vtkMatrixFromArray(mr_lin_transform)
-
-      translation_transform = slicer.vtkMRMLLinearTransformNode()
-      translation_transform.SetMatrixTransformToParent(mr_lin_transform_vtk)
-
-      slicer.mrmlScene.AddNode(translation_transform)
-
-      mr.SetAndObserveTransformNodeID(translation_transform.GetID())
-      mr.HardenTransform()
-
-
-      transform = slicer.mrmlScene.GetNodesByName('1: SpatialReg [1]_SpatialRegistration').GetItemAsObject(0)
-
-
-
-      mr.SetAndObserveTransformNodeID(transform.GetID())
-
-
-      mr.HardenTransform()
-
-      sv_nodes = slicer.util.getNodes('vtkMRMLScalarVolumeNode*')
-
-      for imageNode in sv_nodes.values():
-        # Clean up file name and set path
-        fileName = imageNode.GetName() + '.nii.gz'
-        table = str.maketrans(dict.fromkeys('!?:;'))
-        fileName = fileName.translate(table)
-        filePath = output_dir + '/' + fileName
-
-        success = slicer.util.saveNode(imageNode, filePath)
-
-
-
-      slicer.mrmlScene.Clear(0)  # clear the scene
-
-      ct_series = matching_dict['ct_series']
-
-      if ct_series is not None:
-        DICOMLib.loadSeriesByUID([ct_series])
-
-        ct_nodes = slicer.util.getNodes('vtkMRMLScalarVolumeNode*')
-
-        for imageNode in ct_nodes.values():
-          # Clean up file name and set path
-          fileName = imageNode.GetName() + '.nii.gz'
-          table = str.maketrans(dict.fromkeys('!?:;'))
-          fileName = fileName.translate(table)
-          filePath = output_dir + '/' + fileName
-
-      success = slicer.util.saveNode(imageNode, filePath)
-
+            success = slicer.util.saveNode(imageNode, filePath)
 
 
 if __name__ == "__main__":
-  main()
-
+    main()
