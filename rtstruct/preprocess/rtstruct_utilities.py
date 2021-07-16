@@ -4,7 +4,7 @@ import pydicom
 
 from skimage.draw import polygon
 
-def get_study_from_rt(rt):
+def get_study_uid_from_rt(rt):
     """Parses RTSTRUCT metadata to return referenced CT study instance.
     
     Args:
@@ -21,8 +21,20 @@ def get_study_from_rt(rt):
     res = '.'.join(res)
     return res
 
+def get_study_from_rt(rt):
+    """Parses RTSTRUCT metadata to return referenced CT study instance.
+    
+    Args:
+        rt (pydicom rtstruct data): RTSTRUCT object containing metadata
+                                    and contour information.
+        
+    Returns:
+        Referenced CT study instance for RTSTRUCT
 
-def get_series_from_rt(rt):
+    """
+    return rt.StudyID
+
+def get_series_uid_from_rt(rt):
     """Parses RTSTRUCT metadata to return references CT series instance.
     
     Args:
@@ -53,7 +65,7 @@ def load_rtstruct(root, row):
     
     """
     path = (f"{root}/fullerkj/{row['parent']}/{row['pid']}/"
-            f"{row['year']}/{row['study']}/{row['series']}/{row['modality']}")
+            f"{row['year']}/{row['study_uid']}/{row['series_uid']}/{row['modality']}")
     path = glob.glob(f'{path}/*')
     assert len(path) == 1
     rtstruct = pydicom.dcmread(path[0])
@@ -86,14 +98,13 @@ def process_rtstruct(structure):
     
     
 def convert_rtstruct_to_mask(contours, shape, slices):
-    """Retrieve annotations from RTSTRUCT file.
+    """Converts RTSTRUCT annotations to numpy mask.
     
     Args:
         structure: RTSTRUCT pydicom data.
         
     Returns:
-        A list of contours stored in the file containing number, names,
-        and contour coordinates.
+        A numpy mask of the contour.
     """
     z = [np.around(s.ImagePositionPatient[2], 1) for s in slices]
     pos_r = slices[0].ImagePositionPatient[1]
@@ -112,8 +123,7 @@ def convert_rtstruct_to_mask(contours, shape, slices):
             c = (nodes[:, 0] - pos_c) / spacing_c
             rr, cc = polygon(r, c)
             label_map[z_index, rr, cc] = num
+    
+    res = np.swapaxes(label_map, 0, 2) # swap axis (z,y,x)=>(x,y,z)
 
-    return label_map
-
-
-
+    return res
