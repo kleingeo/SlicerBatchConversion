@@ -1,8 +1,16 @@
 import os
 import nibabel as nib
+import numpy as np
+from pathlib import Path
+
+from .rtstruct_utilities import load_rtstruct, process_rtstruct, convert_rtstruct_to_mask, \
+                                get_study_from_rt, get_study_uid_from_rt, get_series_uid_from_rt
+
+from .ct_utilities import get_ct_patient_position, get_ct_slice_thickness, get_ct_pixel_spacing, \
+                          process_ct, get_ct_from_rtstruct, get_ct_patient_id
 
 
-def get_mask(root, row, df):
+def get_mask(root, row, df, contour_type='gtv'):
     rt = load_rtstruct(root, row)
 
     ct_slices = get_ct_from_rtstruct(root, rt, df)
@@ -20,14 +28,20 @@ def get_mask(root, row, df):
         return mask
     return 'bad'
 
+# def get_save_location(root, row):
+#     location = (f"{root}/evandros/processedOdette/"
+#                 f"{row['pid']}/{row['year']}/{row['study_uid']}/{row['series_uid']}/"
+#                 f"{row['modality']}/")
+
+#     return location
+
 def get_save_location(root, row):
-    location = (f"{root}/evandros/processedOdette/"
-                f"{row['pid']}/{row['year']}/{row['study']}/{row['series']}/"
-                f"{row['modality']}/")
+    location = (f"{root}/evandros/processedOdetteAligned/"
+                f"{row['pid']}/{row['study']}")
 
     return location
 
-def save_mask(row, mask):
+def save_mask(root, row, mask, contour_type='gtv'):
     location = get_save_location(root, row)
     Path(f'{location}').mkdir(parents=True, exist_ok=True)
     filename = os.path.join(location, f'{contour_type}.nii.gz')
@@ -38,7 +52,7 @@ def save_mask(row, mask):
     else:
         print('File exists')
 
-def save_metadata(row, df):
+def save_metadata(root, row, df):
     location = get_save_location(root, row)
     
     rt = load_rtstruct(root, row)
@@ -51,14 +65,16 @@ def save_metadata(row, df):
     
     pid = get_ct_patient_id(ct_slices)
     study = get_study_from_rt(rt)
-    series = get_series_from_rt(rt)
+    study_uid = get_study_uid_from_rt(rt)
+    series = get_series_uid_from_rt(rt)
     
     metadata_path = os.path.join(location, 'metadata.txt')
 
     if not os.path.exists(metadata_path):
         with open(metadata_path, "w") as text_file:
             text_file.write("Patient ID: " + str(pid) + "\n")
-            text_file.write("Study Instance UID: " + str(study) + "\n")
+            text_file.write("Study Instance: " + str(study) + "\n")
+            text_file.write("Study Instance UID: " + str(study_uid) + "\n")
             text_file.write("Series Instance UID: " + str(series) + "\n")
             text_file.write("Slice Thickness: " + str(slice_thickness) + "\n")
             text_file.write("Slice Pixel Spacing: " + str(pixel_spacing) + "\n")

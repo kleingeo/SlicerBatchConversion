@@ -2,7 +2,7 @@ import glob
 import numpy as np
 import pydicom
 
-from .rtstruct_utilities import get_study_from_rt, get_series_from_rt
+from .rtstruct_utilities import get_study_from_rt, get_study_uid_from_rt, get_series_uid_from_rt
 
 
 def load_ct(root, row):
@@ -18,7 +18,7 @@ def load_ct(root, row):
     
     """
     path = (f"{root}/fullerkj/{row['parent']}/{row['pid']}/"
-            f"{row['year']}/{row['study']}/{row['series']}/{row['modality']}")
+            f"{row['year']}/{row['study_uid']}/{row['series_uid']}/{row['modality']}")
     path = glob.glob(f'{path}/*')
     
     slices = [pydicom.dcmread(p) for p in path]
@@ -64,13 +64,12 @@ def get_ct_patient_position(slices):
         slices: A list of CT pydicom data.
 
     Returns:
-        The x, y, and x coordinates of the upper left hand corner
+        The x, y, and z coordinates of the upper left hand corner
         (center of the first voxel transmitted) of the image, in mm
         
     """
     patient_position = list(slices[0].ImagePositionPatient)
     patient_position = [float(p) for p in patient_position]
-    patient_position = patient_position[::-1] # used to change (x,y,z)=>(z,y,x)
     return patient_position
 
 def get_ct_slice_thickness(slices):
@@ -94,14 +93,13 @@ def get_ct_pixel_spacing(slices):
         slices: A list of CT pydicom data.
 
     Returns:
-        A list of floats of the CT pixel spacing in (z, y, x) format.
+        A list of floats of the CT pixel spacing in (x, y, z) format.
         
     """
     xy_spacing = list(slices[0].PixelSpacing)
     xy_spacing = [float(d) for d in xy_spacing]
-    yx_spacing = xy_spacing[::-1]
     slice_thickness = [float(slices[0].SliceThickness)]
-    pixel_spacing = slice_thickness + yx_spacing
+    pixel_spacing = xy_spacing + slice_thickness
     return pixel_spacing
 
 
@@ -119,12 +117,30 @@ def get_ct_from_rtstruct(root, rt, df):
         A list of CT pydicom data.
 
     """
-    study = get_study_from_rt(rt)
-    series = get_series_from_rt(rt)
-    row = df[(df['study']==study) & (df['series']==series)].squeeze()
+    study_uid = get_study_uid_from_rt(rt)
+    series_uid = get_series_uid_from_rt(rt)
+    row = df[(df['study_uid']==study_uid) & (df['series_uid']==series_uid)].squeeze()
     ct_slices = load_ct(root, row)
     return ct_slices
 
+# def get_ct_from_rtstruct(root, rt, df):
+#     """Retrieves CT given rtstruct and dataframe table.
+    
+#     Args:
+#         root (pathlib.PosixPath): Root directory of patient dcm files.
+#         rt (pydicom rtstruct data): RTSTRUCT object containing metadata
+#                                     and contour information.
+#         df (pandas DataFrame): Dataframe table containing all patient ids,
+#                                studies, series for referencing.
+
+#     Returns:
+#         A list of CT pydicom data.
+
+#     """
+#     study = get_study_from_rt(rt)
+#     row = df[(df['study']==study) & (df['modality']=='CT')].squeeze()
+#     ct_slices = load_ct(root, row)
+#     return ct_slices
 
 def process_ct(slices):
     """Processes CT dicom pixel array data to numpy array.
