@@ -21,7 +21,7 @@ def get_mask(root, row, df, contour_type='gtv'):
     pixel_spacing = get_ct_pixel_spacing(ct_slices)
 
     contours = process_rtstruct(rt)
-    contours = [c for c in contours if c['name'].lower() in contour_type]
+    contours = [c for c in contours if c['name'].lower() == contour_type]
     
     if contours:
         mask = convert_rtstruct_to_mask(contours, ct.shape, ct_slices)
