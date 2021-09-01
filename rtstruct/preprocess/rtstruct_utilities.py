@@ -13,7 +13,6 @@ def get_study_uid_from_rt(rt):
         
     Returns:
         Referenced CT study instance for RTSTRUCT
-
     """
     res = rt[0x3006, 0x10][0][0x3006, 0x12][0][0x08,0x1155][:].split('.') # reference study instance
     
@@ -30,7 +29,6 @@ def get_study_from_rt(rt):
         
     Returns:
         Referenced CT study instance for RTSTRUCT
-
     """
     return rt.StudyID
 
@@ -59,7 +57,6 @@ def load_rtstruct(root, row):
         root (pathlib.PosixPath): Root directory of patient dcm files.
         row (pandas Series): A row from the master dataframe to access
                              the path of the MR dicom directory.
-
     Returns:
         RTSTRUCT pydicom data.
     
@@ -82,19 +79,18 @@ def process_rtstruct(structure):
         A list of contours stored in the file containing number, names,
         and contour coordinates.
     """
-    try:
-        contours = []
-        for i in range(len(structure.ROIContourSequence)):
-            contour = {'number': structure.ROIContourSequence[i].ReferencedROINumber,
-                       'name': structure.StructureSetROISequence[i].ROIName}
+    contours = []
+    for i in range(len(structure.ROIContourSequence)):
+        contour = {'number': structure.ROIContourSequence[i].ReferencedROINumber,
+                   'name': structure.StructureSetROISequence[i].ROIName}
 
-            assert contour['number'] == structure.StructureSetROISequence[i].ROINumber
+        assert contour['number'] == structure.StructureSetROISequence[i].ROINumber
+        
+        if hasattr(structure.ROIContourSequence[i], 'ContourSequence'):
             contour['contours'] = [s.ContourData for s in structure.ROIContourSequence[i].ContourSequence]
             contours.append(contour)
 
-        return contours
-    except:
-        return []
+    return contours
     
     
 def convert_rtstruct_to_mask(contours, shape, slices):
